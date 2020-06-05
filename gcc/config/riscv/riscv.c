@@ -333,6 +333,14 @@ static const struct attribute_spec riscv_attribute_table[] =
   { NULL,	0,  0, false, false, false, false, NULL, NULL }
 };
 
+/* Order for the USEs of gpr_save.  */
+static const unsigned gpr_save_reg_order[] = {
+  INVALID_REGNUM, T0_REGNUM, T1_REGNUM, RETURN_ADDR_REGNUM,
+  S0_REGNUM, S1_REGNUM, S2_REGNUM, S3_REGNUM, S4_REGNUM,
+  S5_REGNUM, S6_REGNUM, S7_REGNUM, S8_REGNUM, S9_REGNUM,
+  S10_REGNUM, S11_REGNUM
+};
+
 /* A table describing all the processors GCC knows about.  */
 static const struct riscv_cpu_info riscv_cpu_info_table[] = {
   { "rocket", generic, &rocket_tune_info },
@@ -3955,9 +3963,9 @@ riscv_expand_prologue (void)
       rtx dwarf = NULL_RTX;
       dwarf = riscv_adjust_libcall_cfi_prologue ();
 
-      frame->mask = 0; /* Temporarily fib that we need not save GPRs.  */
       size -= frame->save_libcall_adjustment;
-      insn = emit_insn (gen_gpr_save (GEN_INT (mask)));
+      insn = emit_insn (riscv_gen_gpr_save_insn (frame));
+      frame->mask = 0; /* Temporarily fib that we need not save GPRs.  */
 
       RTX_FRAME_RELATED_P (insn) = 1;
       REG_NOTES (insn) = dwarf;
@@ -5047,6 +5055,67 @@ riscv_hard_regno_rename_ok (unsigned from_regno ATTRIBUTE_UNUSED,
      saved by the prologue, even if they would normally be
      call-clobbered.  */
   return !cfun->machine->interrupt_handler_p || df_regs_ever_live_p (to_regno);
+}
+
+rtx
+riscv_gen_gpr_save_insn (struct riscv_frame_info *frame)
+{
+  unsigned count = riscv_save_libcall_count (frame->mask);
+  /* 1 for unspec 2 for clobber t0/t1 and 1 for ra.  */
+  unsigned veclen = 1 + 2 + 1 + count;
+  rtvec vec = rtvec_alloc (veclen);
+
+  RTVEC_ELT (vec, 0) =
+    gen_rtx_UNSPEC_VOLATILE (VOIDmode,
+      gen_rtvec (1, GEN_INT (frame->mask)), UNSPECV_GPR_SAVE);
+  RTVEC_ELT (vec, 1) =
+    gen_rtx_CLOBBER (Pmode, gen_rtx_REG (SImode, T0_REGNUM));
+  RTVEC_ELT (vec, 2) =
+    gen_rtx_CLOBBER (Pmode, gen_rtx_REG (SImode, T1_REGNUM));
+  RTVEC_ELT (vec, 3) =
+    gen_rtx_USE (Pmode, gen_rtx_REG (Pmode, RETURN_ADDR_REGNUM));
+
+  for (int i = 4; i < veclen; ++i)
+    {
+      unsigned regno = gpr_save_reg_order[i];
+      rtx reg = gen_rtx_REG (Pmode, regno);
+
+      gcc_assert (BITSET_P (frame->mask, regno));
+
+      RTVEC_ELT (vec, i) = gen_rtx_USE (Pmode, reg);
+    }
+
+  return gen_rtx_PARALLEL (VOIDmode, vec);
+}
+
+bool
+riscv_gpr_save_operation_p (rtx op)
+{
+  HOST_WIDE_INT len = XVECLEN (op, 0);
+  gcc_assert (len <= ARRAY_SIZE (gpr_save_reg_order));
+  for (int i = 0; i < len; i++)
+    {
+      rtx elt = XVECEXP (op, 0, i);
+      if (i == 0)
+	{
+	  /* First element in parallel is unspec.  */
+	  if (GET_CODE (elt) != UNSPEC_VOLATILE
+	      || GET_CODE (XVECEXP (elt, 0, 0)) != CONST_INT
+	      || XINT (elt, 1) != UNSPECV_GPR_SAVE)
+	    return false;
+	}
+      else
+	{
+	  /* Two CLOBBER and USEs, must check the order.  */
+	  unsigned expect_code = i < 3 ? CLOBBER : USE;
+	  if (GET_CODE (elt) != expect_code
+	      || !REG_P (XEXP (elt, 1))
+	      || (REGNO (XEXP (elt, 1)) != gpr_save_reg_order[i]))
+	    return false;
+	}
+	break;
+    }
+  return true;
 }
 
 /* Initialize the GCC target structure.  */
