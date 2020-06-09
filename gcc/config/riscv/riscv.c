@@ -5051,6 +5051,8 @@ riscv_gen_gpr_save_insn (struct riscv_frame_info *frame)
   unsigned veclen = 1 + 2 + 1 + count;
   rtvec vec = rtvec_alloc (veclen);
 
+  gcc_assert (veclen <= ARRAY_SIZE (gpr_save_reg_order));
+
   RTVEC_ELT (vec, 0) =
     gen_rtx_UNSPEC_VOLATILE (VOIDmode,
       gen_rtvec (1, GEN_INT (count)), UNSPECV_GPR_SAVE);
