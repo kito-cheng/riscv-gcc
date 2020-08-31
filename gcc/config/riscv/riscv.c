@@ -5226,6 +5226,16 @@ riscv_hard_regno_rename_ok (unsigned from_regno ATTRIBUTE_UNUSED,
 #undef TARGET_MACHINE_DEPENDENT_REORG
 #define TARGET_MACHINE_DEPENDENT_REORG riscv_reorg
 
+static int
+riscv_divmod_may_trap_p (const_rtx x ATTRIBUTE_UNUSED,
+			 unsigned flags ATTRIBUTE_UNUSED)
+{
+  return false;
+}
+
+#undef TARGET_DIVMOD_MAY_TRAP_P
+#define TARGET_DIVMOD_MAY_TRAP_P riscv_divmod_may_trap_p
+
 struct gcc_target targetm = TARGET_INITIALIZER;
 
 #include "gt-riscv.h"

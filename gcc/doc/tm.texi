@@ -11791,6 +11791,13 @@ to analyze inner elements of @var{x} in which case @var{flags} should be
 passed along.
 @end deftypefn
 
+@deftypefn {Target Hook} int TARGET_DIVMOD_MAY_TRAP_P (const_rtx @var{x}, unsigned @var{flags})
+This target hook returns nonzero if @var{x}, a @code{div}, @code{mod},
+@code{divu} or @code{divu} operation, might cause a trap.
+Default returns nonzero if input might be zero, signaling NaNs or
+floating point modes with @option{-ftrapping-math}.
+@end deftypefn
+
 @deftypefn {Target Hook} void TARGET_SET_CURRENT_FUNCTION (tree @var{decl})
 The compiler invokes this hook whenever it changes its current function
 context (@code{cfun}).  You can define this function if

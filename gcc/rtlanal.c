@@ -2858,36 +2858,11 @@ may_trap_p_1 (const_rtx x, unsigned flags)
 
       return 0;
 
-      /* Division by a non-constant might trap.  */
     case DIV:
     case MOD:
     case UDIV:
     case UMOD:
-      if (HONOR_SNANS (x))
-	return 1;
-      if (FLOAT_MODE_P (GET_MODE (x)))
-	return flag_trapping_math;
-      if (!CONSTANT_P (XEXP (x, 1)) || (XEXP (x, 1) == const0_rtx))
-	return 1;
-      if (GET_CODE (XEXP (x, 1)) == CONST_VECTOR)
-	{
-	  /* For CONST_VECTOR, return 1 if any element is or might be zero.  */
-	  unsigned int n_elts;
-	  rtx op = XEXP (x, 1);
-	  if (!GET_MODE_NUNITS (GET_MODE (op)).is_constant (&n_elts))
-	    {
-	      if (!CONST_VECTOR_DUPLICATE_P (op))
-		return 1;
-	      for (unsigned i = 0; i < (unsigned int) XVECLEN (op, 0); i++)
-		if (CONST_VECTOR_ENCODED_ELT (op, i) == const0_rtx)
-		  return 1;
-	    }
-	  else
-	    for (unsigned i = 0; i < n_elts; i++)
-	      if (CONST_VECTOR_ELT (op, i) == const0_rtx)
-		return 1;
-	}
-      break;
+      return targetm.divmod_may_trap_p (x, flags);
 
     case EXPR_LIST:
       /* An EXPR_LIST is used to represent a function call.  This

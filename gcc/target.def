@@ -3905,6 +3905,17 @@ passed along.",
  int, (const_rtx x, unsigned flags),
  default_unspec_may_trap_p)
 
+/* Return nonzero if evaluating DIV, MOD, DIVU or MODU with X might cause a
+   trap. FLAGS has the same meaning as in rtlanal.c: may_trap_p_1.  */
+DEFHOOK
+(divmod_may_trap_p,
+ "This target hook returns nonzero if @var{x}, a @code{div}, @code{mod},\n\
+@code{divu} or @code{divu} operation, might cause a trap.\n\
+Default returns nonzero if input might be zero, signaling NaNs or\n\
+floating point modes with @option{-ftrapping-math}.",
+ int, (const_rtx x, unsigned flags),
+ default_divmod_may_trap_p)
+
 /* Given a register, this hook should return a parallel of registers
    to represent where to find the register pieces.  Define this hook
    if the register and its mode are represented in Dwarf in
